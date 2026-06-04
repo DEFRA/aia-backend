@@ -20,5 +20,8 @@ class AppMessages:
     FILE_SIZE_EXCEEDS_LIMIT = "File size exceeds the maximum limit of {max_size} MB."
     UNSUPPORTED_FILE_TYPE = "Unsupported file type '{extension}'. Allowed types: {allowed}."
 
+    # Access code
+    ACCESS_CODE_INVALID = "Invalid access code"
+
 
 messages = AppMessages()

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
+from api.access_code import router as access_code_router
 from api.cost_usage import router as cost_usage_router
 from api.documents import router as documents_router
 from api.health import router as health_router
@@ -39,6 +40,7 @@ app.include_router(documents_router, prefix=API_PREFIX)
 app.include_router(users_router, prefix=API_PREFIX)
 app.include_router(cost_usage_router, prefix=API_PREFIX)
 app.include_router(policy_documents_router, prefix=API_PREFIX)
+app.include_router(access_code_router, prefix=API_PREFIX)
 
 
 def main() -> None:  # pragma: no cover

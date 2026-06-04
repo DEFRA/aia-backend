@@ -42,4 +42,8 @@ app/agents/evaluation/src/tests/
 
 # MacOS
 .DS_Store
+
+# Logs (folder + loose log files anywhere in the tree)
 logs/
+*.log
+*.log.err

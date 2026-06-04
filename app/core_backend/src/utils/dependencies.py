@@ -7,11 +7,13 @@ from repositories.cost_usage_repository import CostUsageRepository
 from repositories.document_repository import DocumentRepository
 from repositories.policy_document_repository import PolicyDocumentRepository
 from repositories.user_repository import UserRepository
+from services.access_code_service import AccessCodeService
 from services.cost_usage_service import CostUsageService
 from services.orchestrator_service import OrchestratorService
 from services.policy_document_service import PolicyDocumentService
 from services.s3_service import S3Service
 from services.sqs_service import SQSService
+from services.ssm_service import SsmService
 from services.upload_service import UploadService
 from utils.app_context import AppContext
 from utils.auth import AuthService
@@ -125,3 +127,9 @@ def get_upload_service(
     orchestrator_service: OrchestratorService = Depends(get_orchestrator_service),
 ) -> UploadService:
     return UploadService(repo, s3_service, context, orchestrator_service)
+
+
+def get_access_code_service() -> AccessCodeService:
+    # Stateless - SSM is hit fresh per call. Caching of the granted state
+    # lives in the frontend session (`accessGranted` flag).
+    return AccessCodeService(SsmService())
