@@ -61,6 +61,8 @@ class DBConfig(BaseModel):
 class AuthConfig(BaseModel):
     jwt_secret: str = "test_secret"
     user_id_header: str = "x-user-id"
+    ssm_access_code_param: str = "/poc/ldn/webops/aia/access_code"
+    ssm_access_code_hash_param: str = "/poc/ldn/webops/aia/access_code_hash"
 
 
 class OrchestratorConfig(BaseModel):
@@ -125,6 +127,12 @@ class AppConfig(BaseSettings):
     # Auth
     jwt_secret: str = Field("test_secret", alias="JWT_SECRET")
     user_id_header: str = Field("x-user-id", alias="USER_ID_HEADER")
+    ssm_access_code_param: str = Field(
+        "/poc/ldn/webops/aia/access_code", alias="SSM_ACCESS_CODE_PARAM"
+    )
+    ssm_access_code_hash_param: str = Field(
+        "/poc/ldn/webops/aia/access_code_hash", alias="SSM_ACCESS_CODE_HASH_PARAM"
+    )
 
     # Orchestrator
     orchestrator_url: str = Field("http://localhost:8001", alias="ORCHESTRATOR_URL")
@@ -206,7 +214,10 @@ class AppConfig(BaseSettings):
     @property
     def auth(self) -> AuthConfig:
         return AuthConfig(
-            jwt_secret=self.jwt_secret, user_id_header=self.user_id_header
+            jwt_secret=self.jwt_secret,
+            user_id_header=self.user_id_header,
+            ssm_access_code_param=self.ssm_access_code_param,
+            ssm_access_code_hash_param=self.ssm_access_code_hash_param,
         )
 
     @property
