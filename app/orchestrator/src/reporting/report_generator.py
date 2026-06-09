@@ -16,7 +16,8 @@ class SummaryGenerator(Protocol):
 
 
 class MarkdownReportGenerator:
-    _RATING_EMOJI = {"Green": "🟢", "Amber": "🟡", "Red": "🔴"}
+    # Grey = Not Applicable; excluded from score % but counted for transparency.
+    _RATING_EMOJI = {"Green": "🟢", "Amber": "🟡", "Red": "🔴", "Grey": "⚫"}
 
     def generate(
         self,
@@ -81,43 +82,29 @@ class MarkdownReportGenerator:
         max_priority_actions: int,
     ) -> list[str]:
         lines: list[str] = ["## Final Evaluation Summary", ""]
-        total_g = total_a = total_r = 0
-        # category_score[label] = % green (lower = worse)
+        total_g = total_a = total_r = total_n = 0
+        # category_score[label] = % green (lower = worse); Grey excluded from denominator
         category_score: dict[str, int] = {}
+        # category_counts[label] = (green, amber, red, grey) for the scorecard
+        category_counts: dict[str, tuple[int, int, int, int]] = {}
         for agent_type in agent_type_order:
             result_list = [r for r in results.get(agent_type, []) if r is not None]
             if not result_list:
                 continue
             label = section_labels.get(agent_type, agent_type.title())
-            g = sum(
-                1
-                for result in result_list
-                for doc in result.docs
-                for r in doc.assessments
-                if r.Rating == "Green"
-            )
-            a = sum(
-                1
-                for result in result_list
-                for doc in result.docs
-                for r in doc.assessments
-                if r.Rating == "Amber"
-            )
-            r = sum(
-                1
-                for result in result_list
-                for doc in result.docs
-                for r in doc.assessments
-                if r.Rating == "Red"
-            )
-            total = g + a + r
-            score = round((g / total) * 100) if total > 0 else 0
+            g, a, r, n = self._count_ratings(result_list)
+            applicable = g + a + r
+            score = round((g / applicable) * 100) if applicable > 0 else 0
             category_score[label] = score
+            category_counts[label] = (g, a, r, n)
             total_g += g
             total_a += a
             total_r += r
-        total_all = total_g + total_a + total_r
-        overall_score = round((total_g / total_all) * 100) if total_all > 0 else 0
+            total_n += n
+        applicable_all = total_g + total_a + total_r
+        overall_score = (
+            round((total_g / applicable_all) * 100) if applicable_all > 0 else 0
+        )
 
         # ── Overall Conclusion ────────────────────────────────────────────────
         lines.append("### Overall Conclusion")
@@ -130,10 +117,11 @@ class MarkdownReportGenerator:
             for at in agent_type_order
             if any(r is not None for r in results.get(at, []))
         )
+        na_clause = f", {total_n} N/A excluded" if total_n else ""
         lines.append(
-            f"The assessment reviewed {total_all} controls across {n_categories} policy areas. "
+            f"The assessment reviewed {applicable_all} applicable controls across {n_categories} policy areas. "
             f"Overall compliance stands at **{overall_score}% — {risk}** "
-            f"({total_g} Green, {total_a} Amber, {total_r} Red). "
+            f"({total_g} Green, {total_a} Amber, {total_r} Red{na_clause}). "
             f"{weakest} is the weakest area with {total_r} critical gap(s). "
             f'Most urgent finding: *"{top}"* — immediate remediation required.'
         )
@@ -142,38 +130,13 @@ class MarkdownReportGenerator:
         # ── Scorecard ─────────────────────────────────────────────────────────
         lines.append("### Cross-Category Scorecard")
         lines.append("")
-        lines.append("| Category | 🟢 Green | 🟡 Amber | 🔴 Red | Score |")
-        lines.append("|---|---|---|---|---|")
-        for agent_type in agent_type_order:
-            result_list = [r for r in results.get(agent_type, []) if r is not None]
-            if not result_list:
-                continue
-            label = section_labels.get(agent_type, agent_type.title())
-            g = sum(
-                1
-                for result in result_list
-                for doc in result.docs
-                for r in doc.assessments
-                if r.Rating == "Green"
-            )
-            a = sum(
-                1
-                for result in result_list
-                for doc in result.docs
-                for r in doc.assessments
-                if r.Rating == "Amber"
-            )
-            r = sum(
-                1
-                for result in result_list
-                for doc in result.docs
-                for r in doc.assessments
-                if r.Rating == "Red"
-            )
+        lines.append("| Category | 🟢 Green | 🟡 Amber | 🔴 Red | ⚫ N/A | Score |")
+        lines.append("|---|---|---|---|---|---|")
+        for label, (g, a, r, n) in category_counts.items():
             score = category_score[label]
-            lines.append(f"| {label} | {g} | {a} | {r} | {score}% |")
+            lines.append(f"| {label} | {g} | {a} | {r} | {n} | {score}% |")
         lines.append(
-            f"| **Overall** | **{total_g}** | **{total_a}** | **{total_r}** | **{overall_score}%** |"
+            f"| **Overall** | **{total_g}** | **{total_a}** | **{total_r}** | **{total_n}** | **{overall_score}%** |"
         )
         lines.append("")
 
@@ -215,6 +178,22 @@ class MarkdownReportGenerator:
             )
         lines.append("")
         return lines
+
+    @staticmethod
+    def _count_ratings(result_list: list[AgentResult]) -> tuple[int, int, int, int]:
+        g = a = r = n = 0
+        for result in result_list:
+            for doc in result.docs:
+                for row in doc.assessments:
+                    if row.Rating == "Green":
+                        g += 1
+                    elif row.Rating == "Amber":
+                        a += 1
+                    elif row.Rating == "Red":
+                        r += 1
+                    elif row.Rating == "Grey":
+                        n += 1
+        return g, a, r, n
 
     def _classify_risk(self, overall_score: int) -> str:
         if overall_score >= 80:

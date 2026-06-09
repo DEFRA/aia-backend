@@ -7,7 +7,8 @@
 #   .\scripts\reset-datapipeline.ps1
 #
 # Requirements:
-#   * .env in the repo root with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+#   * app/datapipeline/.env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+#     (plus SHAREPOINT_* and MODEL_ID for the pipeline run in Step 4)
 #   * .venv built from requirements.txt (needs python-dotenv)
 #   * psql.exe on PATH  OR  python psycopg2 available in .venv
 #
@@ -60,7 +61,7 @@ if (-not (Test-Path $VenvPython)) {
 
 # -- Load .env via python-dotenv ------------------------------------------------
 # Python handles special characters in passwords (e.g. Admin123$@) safely.
-$EnvFile = Join-Path $RepoRoot ".env"
+$EnvFile = Join-Path $RepoRoot "app\datapipeline\.env"
 if (-not (Test-Path $EnvFile)) {
     Write-Host "ERROR: .env not found at $EnvFile" -ForegroundColor Red
     exit 1

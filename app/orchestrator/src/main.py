@@ -501,7 +501,7 @@ def main() -> None:
         "app.orchestrator.src.main:app",
         host=config.app.host,
         port=config.orchestrator.port,
-        reload=config.app.env == "development",
+        reload=config.app.env.lower() in ("dev", "development"),
     )
 
 

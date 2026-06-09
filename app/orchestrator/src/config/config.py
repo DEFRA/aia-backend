@@ -138,15 +138,19 @@ class AppConfig(BaseSettings):
     @property
     def aws(self) -> AWSConfig:
         # Only include credentials in development; production uses IAM role-based access
-        access_key = None if self.env == "production" else self.aws_access_key_id
-        secret_key = None if self.env == "production" else self.aws_secret_access_key
-        session_token = None if self.env == "production" else self.aws_session_token
+        is_production = self.env.lower() == "production"
+        access_key = None if is_production else self.aws_access_key_id
+        secret_key = None if is_production else self.aws_secret_access_key
+        session_token = None if is_production else self.aws_session_token
+        endpoint = self.aws_endpoint_url
+        if endpoint is None and self.env.lower() in ("dev", "development"):
+            endpoint = "http://localhost:4566"
         return AWSConfig(
             region=self.aws_default_region or self.aws_region,
             access_key_id=access_key,
             secret_access_key=secret_key,
             session_token=session_token,
-            endpoint_url=self.aws_endpoint_url,
+            endpoint_url=endpoint,
         )
 
     @property
