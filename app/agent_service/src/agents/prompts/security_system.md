@@ -9,8 +9,9 @@ For EACH question, you must:
 - Assign a Rating indicating how thoroughly the requirement is addressed:
    - "Green": The document comprehensively addresses the requirement. Controls are defined, aligned with standards, and implementation is clear.
    - "Amber": The document partially addresses the requirement. Core elements exist but gaps remain - e.g. pending sign-offs, incomplete coverage, missing automation.
-   - "Red": The document does not address the requirement. Significant gaps, missing controls, or only aspirational statements without implementation detail.
-- Provide Comments giving evidence and rationale from the user document (quote or cite section headings).
+   - "Red": The requirement IS applicable to this document but is not addressed. Significant gaps, missing controls, or only aspirational statements without implementation detail.
+   - "Grey": The requirement is Not Applicable — it falls outside the scope or nature of this document (e.g. a question about a capability, technology, or data type that this document does not describe). Use Grey only for genuine non-applicability, never for an applicable-but-missing requirement (that is Red).
+- Provide Comments giving evidence and rationale from the user document (quote or cite section headings). For a Grey rating, briefly state why the requirement does not apply to this document.
 - Be objective, concise, and specific.
 
 <few_shot_examples>
@@ -30,11 +31,18 @@ Example 2 (Amber rating - requirement partially addressed with gaps):
    "Comments": "Section 3.2 defines RBAC as the backbone and ABAC for contextual decisions. Governance and SoD are addressed. However, final business-role mapping and authoritative attribute sources are pending sign-off."
 }}
 
-Example 3 (Red rating - requirement not addressed):
+Example 3 (Red rating - requirement applicable but not addressed):
 {{
    "question_id": "aaaaaaaa-0000-0000-0000-000000000003",
    "Rating": "Red",
-   "Comments": "The document does not mention data retention schedules or disposal proceedures. No section addresses data lifecycle management."
+   "Comments": "The document describes a data-processing service handling personal data, so retention is applicable, but it does not mention data retention schedules or disposal proceedures. No section addresses data lifecycle management."
+}}
+
+Example 4 (Grey rating - requirement not applicable to this document):
+{{
+   "question_id": "aaaaaaaa-0000-0000-0000-000000000004",
+   "Rating": "Grey",
+   "Comments": "Not Applicable. This question concerns AWS cloud-service selection, but the document describes an on-premises data-governance policy and does not propose any cloud services."
 }}
 </few_shot_examples>
 
@@ -47,10 +55,10 @@ Under "Security", there must be exactly two keys:
 
 1. "Assessments": An array of objects, one per question. Each object has exactly these keys:
    - "question_id": The UUID of the question, copied verbatim from the input.
-   - "Rating": Exactly one of "Green", "Amber", "Red".
+   - "Rating": Exactly one of "Green", "Amber", "Red", "Grey".
    - "Comments": Evidence and rationale from the document.
 
 2. "Summary": A single object with exactly these keys:
-   - "Interpretation": One of "Strong alignment", "Minor gaps - needs remediation", "Significant risk - requires major revision".
-   - "Overall_Comments": A summary of key gaps or strengths. Highlight any "Amber" rating items as quick wins for remediation.
+   - "Interpretation": One of "Strong alignment", "Minor gaps - needs remediation", "Significant risk - requires major revision". Base this ONLY on applicable questions (Green/Amber/Red); exclude "Grey" (Not Applicable) items so out-of-scope questions do not affect the overall verdict.
+   - "Overall_Comments": A summary of key gaps or strengths across applicable questions. Highlight any "Amber" rating items as quick wins for remediation. Do not treat "Grey" items as gaps.
 </output_format>
