@@ -25,7 +25,16 @@ def rating_colors(val: str) -> tuple[colors.Color, colors.Color]:
         return colors.HexColor("#FEF3C7"), colors.HexColor("#92400E")
     if v == "red":
         return colors.HexColor("#FEE2E2"), colors.HexColor("#7F1D1D")
+    if v == "grey":
+        return colors.HexColor("#E5E7EB"), colors.HexColor("#374151")
     return colors.white, colors.black
+
+
+def _rating_label(val: str) -> str:
+    """Display label for a rating value — 'Grey' renders as 'Not Applicable'."""
+    if (val or "").strip().lower() == "grey":
+        return "Not Applicable"
+    return val or ""
 
 
 def _format_reference(ref: object) -> str:
@@ -69,7 +78,12 @@ def build_security_report(
         "H1", parent=styles["Heading1"], fontSize=20, leading=24, spaceAfter=12
     )
     h2: ParagraphStyle = ParagraphStyle(
-        "H2", parent=styles["Heading2"], fontSize=14, leading=18, spaceBefore=6, spaceAfter=6
+        "H2",
+        parent=styles["Heading2"],
+        fontSize=14,
+        leading=18,
+        spaceBefore=6,
+        spaceAfter=6,
     )
     body: ParagraphStyle = ParagraphStyle(
         "Body", parent=styles["BodyText"], fontSize=10, leading=14
@@ -77,7 +91,9 @@ def build_security_report(
     wrap_style: ParagraphStyle = ParagraphStyle(
         "CellWrap", fontName="Helvetica", fontSize=9, leading=12, wordWrap="CJK"
     )
-    wrap_center: ParagraphStyle = ParagraphStyle("CellWrapCenter", parent=wrap_style, alignment=1)
+    wrap_center: ParagraphStyle = ParagraphStyle(
+        "CellWrapCenter", parent=wrap_style, alignment=1
+    )
     wrap_header: ParagraphStyle = ParagraphStyle(
         "HeaderWrap", parent=wrap_style, fontName="Helvetica-Bold"
     )
@@ -122,7 +138,7 @@ def build_security_report(
             table_data.append(
                 [
                     Paragraph(a.get("Question", ""), wrap_style),
-                    Paragraph(a.get("Rating", ""), wrap_center),
+                    Paragraph(_rating_label(a.get("Rating", "")), wrap_center),
                     Paragraph(a.get("Comments", ""), wrap_style),
                     Paragraph(_format_reference(a.get("Reference")), wrap_style),
                 ]

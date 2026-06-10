@@ -98,6 +98,7 @@ print(json.dumps(vals))
 Load-EnvFile (Join-Path $RepoRoot ".env")
 Load-EnvFile (Join-Path $RepoRoot "app\core_backend\.env")
 Load-EnvFile (Join-Path $RepoRoot "app\orchestrator\.env")
+Load-EnvFile (Join-Path $RepoRoot "app\agent_service\.env")
 
 # ── Parse argument ─────────────────────────────────────────────────────────────
 $Mode = if ($args.Count -gt 0) { $args[0] } else { "--start" }
@@ -261,16 +262,27 @@ from botocore.exceptions import ClientError
 
 bucket = os.environ.get("S3_BUCKET_NAME", "pocldnaia001")
 region = os.environ.get("AWS_DEFAULT_REGION", "eu-west-2")
-s3 = boto3.client(
-    "s3",
-    region_name=region,
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-    aws_session_token=os.environ.get("AWS_SESSION_TOKEN") or None,
-)
+
+# PYTHON_ENV=dev routes S3 to LocalStack unless AWS_ENDPOINT_URL is explicitly set.
+env = os.environ.get("PYTHON_ENV", "").lower()
+endpoint_url = os.environ.get("AWS_ENDPOINT_URL")
+if not endpoint_url and env in ("dev", "development"):
+    endpoint_url = "http://localhost:4566"
+
+kwargs = {
+    "region_name": region,
+    "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
+    "aws_secret_access_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+    "aws_session_token": os.environ.get("AWS_SESSION_TOKEN") or None,
+}
+if endpoint_url:
+    kwargs["endpoint_url"] = endpoint_url
+
+s3 = boto3.client("s3", **kwargs)
 try:
     s3.head_bucket(Bucket=bucket)
-    print(f"accessible — s3://{bucket} in {region}")
+    target = endpoint_url or f"AWS {region}"
+    print(f"accessible — s3://{bucket} via {target}")
 except ClientError as exc:
     code = exc.response["Error"]["Code"]
     print(f"FAIL ({code}): {exc}", file=sys.stderr)
@@ -295,13 +307,21 @@ if not url:
     print("FAIL: TASK_QUEUE_URL not set", file=sys.stderr)
     sys.exit(1)
 
-sqs = boto3.client(
-    "sqs",
-    region_name=os.environ.get("AWS_DEFAULT_REGION", "eu-west-2"),
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-    aws_session_token=os.environ.get("AWS_SESSION_TOKEN") or None,
-)
+env = os.environ.get("PYTHON_ENV", "").lower()
+endpoint_url = os.environ.get("AWS_ENDPOINT_URL")
+if not endpoint_url and env in ("dev", "development"):
+    endpoint_url = "http://localhost:4566"
+
+kwargs = {
+    "region_name": os.environ.get("AWS_DEFAULT_REGION", "eu-west-2"),
+    "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
+    "aws_secret_access_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+    "aws_session_token": os.environ.get("AWS_SESSION_TOKEN") or None,
+}
+if endpoint_url:
+    kwargs["endpoint_url"] = endpoint_url
+
+sqs = boto3.client("sqs", **kwargs)
 try:
     attrs = sqs.get_queue_attributes(
         QueueUrl=url,
@@ -333,13 +353,21 @@ if not url:
     print("FAIL: STATUS_QUEUE_URL not set", file=sys.stderr)
     sys.exit(1)
 
-sqs = boto3.client(
-    "sqs",
-    region_name=os.environ.get("AWS_DEFAULT_REGION", "eu-west-2"),
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-    aws_session_token=os.environ.get("AWS_SESSION_TOKEN") or None,
-)
+env = os.environ.get("PYTHON_ENV", "").lower()
+endpoint_url = os.environ.get("AWS_ENDPOINT_URL")
+if not endpoint_url and env in ("dev", "development"):
+    endpoint_url = "http://localhost:4566"
+
+kwargs = {
+    "region_name": os.environ.get("AWS_DEFAULT_REGION", "eu-west-2"),
+    "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
+    "aws_secret_access_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+    "aws_session_token": os.environ.get("AWS_SESSION_TOKEN") or None,
+}
+if endpoint_url:
+    kwargs["endpoint_url"] = endpoint_url
+
+sqs = boto3.client("sqs", **kwargs)
 try:
     attrs = sqs.get_queue_attributes(
         QueueUrl=url,

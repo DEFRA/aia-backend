@@ -157,12 +157,15 @@ class AppConfig(BaseSettings):
     @property
     def aws(self) -> AWSConfig:
         use_static_credentials = self.env.lower() != "production"
+        endpoint = self.aws_endpoint
+        if endpoint is None and self.env.lower() in ("dev", "development"):
+            endpoint = "http://localhost:4566"
         return AWSConfig(
             region=self.aws_region,
             access_key_id=self.aws_access_key if use_static_credentials else None,
             secret_access_key=self.aws_secret_key if use_static_credentials else None,
             session_token=self.aws_session_token if use_static_credentials else None,
-            endpoint_url=self.aws_endpoint,
+            endpoint_url=endpoint,
         )
 
     @property

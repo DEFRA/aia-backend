@@ -63,6 +63,8 @@ class AuthConfig(BaseModel):
     user_id_header: str = "x-user-id"
     ssm_access_code_param: str = "/poc/ldn/webops/aia/access_code"
     ssm_access_code_hash_param: str = "/poc/ldn/webops/aia/access_code_hash"
+    access_code: Optional[str] = None
+    access_code_hash: Optional[str] = None
 
 
 class OrchestratorConfig(BaseModel):
@@ -133,6 +135,8 @@ class AppConfig(BaseSettings):
     ssm_access_code_hash_param: str = Field(
         "/poc/ldn/webops/aia/access_code_hash", alias="SSM_ACCESS_CODE_HASH_PARAM"
     )
+    access_code: Optional[str] = Field(None, alias="ACCESS_CODE")
+    access_code_hash: Optional[str] = Field(None, alias="ACCESS_CODE_HASH")
 
     # Orchestrator
     orchestrator_url: str = Field("http://localhost:8001", alias="ORCHESTRATOR_URL")
@@ -179,12 +183,15 @@ class AppConfig(BaseSettings):
     @property
     def aws(self) -> AWSConfig:
         use_static_credentials = self.env.lower() != "production"
+        endpoint = self.aws_endpoint
+        if endpoint is None and self.env.lower() in ("dev", "development"):
+            endpoint = "http://localhost:4566"
         return AWSConfig(
             region=self.aws_region,
             access_key_id=self.aws_access_key if use_static_credentials else None,
             secret_access_key=self.aws_secret_key if use_static_credentials else None,
             session_token=self.aws_session_token if use_static_credentials else None,
-            endpoint_url=self.aws_endpoint,
+            endpoint_url=endpoint,
         )
 
     @property
@@ -218,6 +225,8 @@ class AppConfig(BaseSettings):
             user_id_header=self.user_id_header,
             ssm_access_code_param=self.ssm_access_code_param,
             ssm_access_code_hash_param=self.ssm_access_code_hash_param,
+            access_code=self.access_code,
+            access_code_hash=self.access_code_hash,
         )
 
     @property

@@ -55,7 +55,7 @@ def main() -> None:  # pragma: no cover
         "app": "api.main:app",
         "host": config.app.host,
         "port": config.app.port,
-        "reload": config.app.env == "development",
+        "reload": config.app.env.lower() in ("dev", "development"),
     }
     if config.app.log_config:
         server_kwargs["log_config"] = config.app.log_config

@@ -13,7 +13,7 @@ class QuestionItem(BaseModel):
 
 class AssessmentRow(BaseModel):
     Question: str
-    Rating: Literal["Green", "Amber", "Red"]
+    Rating: Literal["Green", "Amber", "Red", "Grey"]
     Comments: str
     Reference: str
 
@@ -34,7 +34,7 @@ class LLMResponseMeta(BaseModel):
 
 class RawAssessmentRow(BaseModel):
     question_id: str
-    Rating: Literal["Green", "Amber", "Red"]
+    Rating: Literal["Green", "Amber", "Red", "Grey"]
     Comments: str
 
 
