@@ -25,7 +25,7 @@ COPY --chown=nonroot:nonroot app/orchestrator/pyproject.toml ./pyproject.toml
 # Install dependencies (generates uv.lock on first run).
 # Commit the generated uv.lock for reproducible builds.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
-    uv sync
+    uv sync --no-build
 
 COPY --chown=nonroot:nonroot app/orchestrator ./app/orchestrator/
 
@@ -40,9 +40,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port ${PORT}"]
 
-# ---------------------------------------------------------------------------
-# Production stage — lean image, no dev tools
-# ---------------------------------------------------------------------------
 FROM defradigital/python:${PARENT_VERSION} AS production
 
 USER root
@@ -59,12 +56,9 @@ COPY --from=development /home/nonroot/pyproject.toml .
 COPY --from=development /home/nonroot/uv.lock .
 COPY --from=development /home/nonroot/app ./app/
 
-# NOTE: All runtime secrets (DB_*, JWT_SECRET, AWS_*, etc.) are injected
-# by the ECS task definition at container start via SSM/Secrets Manager —
-# never at image build time.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     --mount=from=development,source=/home/nonroot/.local/bin/uv,target=/home/nonroot/.local/bin/uv \
-    uv sync --locked --compile-bytecode --no-dev
+    uv sync --locked --compile-bytecode --no-dev --no-build
 
 ARG PORT=8001
 ENV PORT=${PORT} \

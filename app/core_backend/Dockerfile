@@ -20,10 +20,8 @@ WORKDIR /home/nonroot
 
 COPY --chown=nonroot:nonroot pyproject.toml .
 
-# Install dependencies (generates uv.lock on first run).
-# Commit the generated uv.lock for reproducible builds.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
-    uv sync
+    uv sync --no-build
 
 COPY --chown=nonroot:nonroot src/ ./src/
 
@@ -62,7 +60,7 @@ COPY --from=development /home/nonroot/src ./src/
 # never at image build time.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     --mount=from=development,source=/home/nonroot/.local/bin/uv,target=/home/nonroot/.local/bin/uv \
-    uv sync --locked --compile-bytecode --no-dev
+    uv sync --locked --compile-bytecode --no-dev --no-build
 
 ARG PORT=8086
 ENV PORT=${PORT} \
