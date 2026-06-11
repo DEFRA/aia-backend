@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote_plus
@@ -5,8 +6,10 @@ from urllib.parse import quote_plus
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Load from orchestrator's own .env file (at app/orchestrator/.env)
-_ENV_FILE = Path(__file__).parent.parent.parent / ".env"
+# Load .env only in local development. All other environments (ECS) receive
+# secrets and config exclusively via the task definition at container start.
+_env_path = Path(__file__).parent.parent.parent / ".env"
+_ENV_FILE = _env_path if os.getenv("PYTHON_ENV") == "local" and _env_path.exists() else None
 
 TEMPLATE_AGENTS: dict[str, list[str]] = {
     "SDA": ["security", "technical"],
