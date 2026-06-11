@@ -12,6 +12,11 @@ logger = get_logger(__name__)
 _MAX_PAGE_LIMIT = 100
 
 
+def _sanitize(value: str) -> str:
+    """Strip newline/carriage-return characters to prevent log injection."""
+    return str(value).replace("\n", "").replace("\r", "")
+
+
 @router.get(
     "",
     response_model=CostUsageResponse,
@@ -27,7 +32,7 @@ async def fetch_cost_usage(
     response = await service.fetch_cost_usage(user_id, page=page, limit=limit)
     logger.info(
         "Cost usage userId=%s page=%d limit=%d total=%d",
-        user_id,
+        _sanitize(user_id),
         page,
         limit,
         response.pagination.total,
@@ -49,7 +54,7 @@ async def fetch_cost_usage_by_document(
     document = await service.fetch_cost_usage_by_doc(document_id, user_id)
     if document is None:
         logger.warning(
-            "Cost usage not found userId=%s documentId=%s", user_id, document_id
+            "Cost usage not found userId=%s documentId=%s", _sanitize(user_id), _sanitize(document_id)
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -57,8 +62,8 @@ async def fetch_cost_usage_by_document(
         )
     logger.debug(
         "Cost usage by document userId=%s documentId=%s agents=%d",
-        user_id,
-        document_id,
+        _sanitize(user_id),
+        _sanitize(document_id),
         len(document.agents),
     )
     return document

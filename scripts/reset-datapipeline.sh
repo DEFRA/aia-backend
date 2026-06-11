@@ -67,7 +67,7 @@ if [[ ! -x "$VENV_PYTHON" ]]; then
 fi
 
 # ── Load .env via python-dotenv ────────────────────────────────────────────────
-# Python shlex.quote handles special characters in passwords (e.g. Admin123$@).
+# Python shlex.quote handles special characters in passwords safely.
 if [[ -f "$REPO_ROOT/.env" ]]; then
     eval "$("$VENV_PYTHON" -c "
 import shlex, sys

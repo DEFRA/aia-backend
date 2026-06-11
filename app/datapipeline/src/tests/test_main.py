@@ -30,7 +30,7 @@ _ENV = {
     "DB_NAME": "testdb",
     "DB_SCHEMA": "data_pipeline",
     "DB_USER": "user",
-    "DB_PASSWORD": "pass",
+    "DB_PASSWORD": "test-db-password",
     "SHAREPOINT_TENANT_ID": "tid",
     "SHAREPOINT_CLIENT_ID": "cid",
     "SHAREPOINT_CLIENT_SECRET": "sec",
