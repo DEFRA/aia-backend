@@ -19,6 +19,7 @@ jobs:
       - name: Run Aqua Trivy scan
         id: trivy-scan
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        continue-on-error: true
         with:
           scan-ref: .
           scan-type: repository
@@ -26,7 +27,6 @@ jobs:
           exit-code: 1
           severity: CRITICAL,HIGH,MEDIUM,LOW
           limit-severities-for-sarif: true
-          continue-on-error: true
         env:
           TRIVY_INCLUDE_DEV_DEPS: "true"
 
