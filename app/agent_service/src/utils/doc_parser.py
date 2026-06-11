@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import logging
+import unicodedata
 from collections import Counter
 from typing import Any
 
@@ -18,6 +19,54 @@ from app.agent_service.src.config import ParserConfig
 from app.agent_service.src.utils.exceptions import ScannedPdfError
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# Invisible characters used to smuggle hidden prompt-injection instructions.
+# NB: ZWJ (U+200D) and ZWNJ (U+200C) are intentionally NOT stripped — they are
+# linguistically significant in scripts such as Devanagari, Persian and Arabic,
+# and removing them would corrupt legitimate non-English content.
+_ZERO_WIDTH: frozenset[str] = frozenset({"​", "﻿"})  # ZWSP, BOM/ZWNBSP
+
+# Bidirectional override/isolate controls — used to make visible text differ
+# from the logical text the model actually reads.
+_BIDI_CONTROLS: frozenset[str] = frozenset(
+    {
+        "‪", "‫", "‬", "‭", "‮",  # LRE RLE PDF LRO RLO
+        "⁦", "⁧", "⁨", "⁩",            # LRI RLI FSI PDI
+    }
+)
+
+# Unicode Tags block (U+E0000–U+E007F): invisible code points that can carry an
+# entire hidden instruction the model still reads.
+_TAGS_BLOCK_START: int = 0xE0000
+_TAGS_BLOCK_END: int = 0xE007F
+
+
+def sanitize_text(text: str) -> str:
+    """Neutralise hidden/obfuscated content used for prompt injection.
+
+    Language-agnostic defence against non-English and invisible injection that
+    does not rely on keyword blocklists:
+
+    - NFKC-normalises compatibility/confusable forms (homoglyph folding).
+    - Strips zero-width space and BOM (but keeps linguistic ZWJ/ZWNJ).
+    - Removes bidirectional override/isolate controls.
+    - Removes the invisible Unicode Tags block.
+    - Drops other control characters except tab/newline/carriage-return.
+    """
+    if not text:
+        return text
+
+    normalized: str = unicodedata.normalize("NFKC", text)
+    cleaned: list[str] = []
+    for ch in normalized:
+        if ch in _ZERO_WIDTH or ch in _BIDI_CONTROLS:
+            continue
+        if _TAGS_BLOCK_START <= ord(ch) <= _TAGS_BLOCK_END:
+            continue
+        if unicodedata.category(ch) == "Cc" and ch not in ("\t", "\n", "\r"):
+            continue
+        cleaned.append(ch)
+    return "".join(cleaned)
 
 _parser_config: ParserConfig | None = None
 
@@ -60,7 +109,9 @@ def extract_text_blocks(file_bytes: bytes) -> list[dict[str, Any]]:
             if not spans:
                 continue
 
-            text: str = " ".join(s["text"].strip() for s in spans if s["text"].strip())
+            text: str = sanitize_text(
+                " ".join(s["text"].strip() for s in spans if s["text"].strip())
+            )
             if not text:
                 continue
 
@@ -152,7 +203,7 @@ def parse_docx(file_bytes: bytes) -> list[dict[str, Any]]:
     idx: int = 0
 
     for para_idx, para in enumerate(doc.paragraphs):
-        text: str = para.text.strip()
+        text: str = sanitize_text(para.text.strip())
         if not text:
             continue
 
