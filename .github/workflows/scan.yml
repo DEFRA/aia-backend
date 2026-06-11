@@ -1,0 +1,35 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Aqua Trivy scan
+        id: trivy-scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          scan-ref: .
+          scan-type: repository
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          limit-severities-for-sarif: true
+          continue-on-error: true
+        env:
+          TRIVY_INCLUDE_DEV_DEPS: "true"
+
+      - name: Fail if vulnerabilities found
+        if: ${{ steps.trivy-scan.outcome == 'failure' }}
+        run: exit 1

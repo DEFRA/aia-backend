@@ -1,72 +1,76 @@
-FROM python:3.13-slim AS base
-
-
-ARG PYTHON_ENV=production
-ARG HOST=0.0.0.0
+# syntax=docker/dockerfile:1
+ARG PARENT_VERSION=latest-3.14
+ARG PYTHON_VERSION=3.14.5
 ARG PORT=8086
-ARG LOG_LEVEL=INFO
-ARG USER_ID_HEADER=x-user-id
-ARG JWT_SECRET
-ARG DB_HOST
-ARG DB_PORT=5432
-ARG DB_NAME
-ARG DB_USER
-ARG DB_PASSWORD
-ARG AWS_DEFAULT_REGION
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
-ARG AWS_SESSION_TOKEN
-ARG S3_BUCKET_NAME
-ARG S3_UPLOAD_PREFIX
-ARG ORCHESTRATOR_URL
-ARG MAX_FILE_UPLOAD
-ARG ALLOWED_FILE_EXTENSIONS
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/app \
-    PYTHON_ENV=${PYTHON_ENV} \
-    PORT=${PORT} \
-    HOST=${HOST} \
-    LOG_LEVEL=${LOG_LEVEL} \
-    USER_ID_HEADER=${USER_ID_HEADER} \
-    JWT_SECRET=${JWT_SECRET} \
-    DB_HOST=${DB_HOST} \
-    DB_PORT=${DB_PORT} \
-    DB_NAME=${DB_NAME} \
-    DB_USER=${DB_USER} \
-    DB_PASSWORD=${DB_PASSWORD} \
-    AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} \
-    AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
-    AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
-    AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN} \
-    S3_BUCKET_NAME=${S3_BUCKET_NAME} \
-    S3_UPLOAD_PREFIX=${S3_UPLOAD_PREFIX} \
-    ORCHESTRATOR_URL=${ORCHESTRATOR_URL} \
-    MAX_FILE_UPLOAD=${MAX_FILE_UPLOAD} \
-    ALLOWED_FILE_EXTENSIONS=${ALLOWED_FILE_EXTENSIONS}
+# ---------------------------------------------------------------------------
+# Development stage — includes uv and dev dependencies
+# ---------------------------------------------------------------------------
+FROM defradigital/python-development:${PARENT_VERSION} AS development
 
-WORKDIR /app
-
+USER root
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl \
- && update-ca-certificates \
+ && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*
+USER nonroot
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+ENV PATH="/home/nonroot/.venv/bin:/home/nonroot/.local/bin:${PATH}"
 
-COPY src/ ./
+WORKDIR /home/nonroot
 
-RUN groupadd --system app && useradd --system --gid app --home-dir /app app \
- && chown -R app:app /app
-USER app
+COPY --chown=nonroot:nonroot pyproject.toml .
 
-EXPOSE 8086
+# Install dependencies (generates uv.lock on first run).
+# Commit the generated uv.lock for reproducible builds.
+RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
+    uv sync
+
+COPY --chown=nonroot:nonroot src/ ./src/
+
+ARG PORT=8086
+ENV PORT=${PORT} \
+    PYTHONPATH=/home/nonroot/src
+
+EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl --fail http://127.0.0.1:8086/health || exit 1
+    CMD curl --fail http://127.0.0.1:${PORT}/health || exit 1
 
-CMD ["sh", "-c", "uvicorn api.main:app --host ${HOST} --port ${PORT}"]
+CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port ${PORT}"]
+
+# ---------------------------------------------------------------------------
+# Production stage — lean image, no dev tools
+# ---------------------------------------------------------------------------
+FROM defradigital/python:${PARENT_VERSION} AS production
+
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+USER nonroot
+
+ENV PATH="/home/nonroot/.venv/bin:${PATH}"
+
+WORKDIR /home/nonroot
+
+COPY --from=development /home/nonroot/pyproject.toml .
+COPY --from=development /home/nonroot/uv.lock .
+COPY --from=development /home/nonroot/src ./src/
+
+# NOTE: All runtime secrets (DB_*, JWT_SECRET, AWS_*, etc.) are injected
+# by the ECS task definition at container start via SSM/Secrets Manager —
+# never at image build time.
+RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
+    --mount=from=development,source=/home/nonroot/.local/bin/uv,target=/home/nonroot/.local/bin/uv \
+    uv sync --locked --compile-bytecode --no-dev
+
+ARG PORT=8086
+ENV PORT=${PORT} \
+    PYTHONPATH=/home/nonroot/src
+
+EXPOSE ${PORT}
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl --fail http://127.0.0.1:${PORT}/health || exit 1
+
+CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port ${PORT}"]

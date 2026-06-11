@@ -1,12 +1,11 @@
-name: Core-app-deployment
+name: Agent Service Publish
 
 on:
   push:
-    branches:
-      - main
-      - development
-    tags:
-      - "v*.*.*"
+    branches: [main]
+    paths:
+      - "app/agent_service/**"
+      - ".github/workflows/agent-service-publish.yml"
   workflow_dispatch:
     inputs:
       environment:
@@ -20,31 +19,29 @@ on:
           - pre
           - production
 
-env:
-  REPOSITORY: aia/backend
-
 jobs:
-  build:
+  build-agent-service-image:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     environment: production
     permissions:
       id-token: write
       contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ secrets.AWS_ENV_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ENV_ACCOUNT }}:role/${{ secrets.AWS_ENV_ROLE }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2
 
       - name: Generate raw tag
         id: raw-tag
@@ -59,11 +56,12 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           flavor: |
             latest=false
-          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}
+            suffix=-python3.14.5,onlatest=true
+          images: ${{ steps.login-ecr.outputs.registry }}/aia/backend-agent
           tags: |
             type=semver,event=tag,priority=900,pattern={{version}},value=${{ steps.raw-tag.outputs.raw_tag }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=raw,priority=800,value=${{ steps.semver-main.outputs.semver }},enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
@@ -73,9 +71,10 @@ jobs:
             org.opencontainers.image.licenses=OGL-UK-3.0
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: app/core_backend/
+          context: app/agent_service
+          file: app/agent_service/Dockerfile
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -84,16 +83,12 @@ jobs:
         id: summary
         run: |
           {
-            echo "### Docker Image details"
+            echo "### Agent Service Docker Image Deployment"
             echo "The tag is **${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}**"
             echo "| Label      | Value |"
             echo "| ---------- | ----- |"
             echo "| created    | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }} |"
-            echo "| description| ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.description'] }} |"
             echo "| licenses   | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.licenses'] }} |"
             echo "| revision   | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }} |"
-            echo "| source     | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.source'] }} |"
-            echo "| title      | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.title'] }} |"
-            echo "| url        | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.url'] }} |"
             echo "| version    | ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }} |"
           } >> $GITHUB_STEP_SUMMARY
