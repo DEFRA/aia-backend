@@ -72,47 +72,10 @@ jobs:
           labels: |
             org.opencontainers.image.licenses=OGL-UK-3.0
 
-      - name: Prepare Docker build args
-        id: build-args
-        env:
-          PYTHON_ENV: ${{ vars.PYTHON_ENV || 'production' }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-        run: |
-          PY_ENV_NORMALIZED=$(echo "${PYTHON_ENV}" | tr '[:upper:]' '[:lower:]')
-          {
-            echo "build_args<<EOF"
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
-            echo "PYTHON_ENV=${{ vars.PYTHON_ENV || 'production' }}"
-            echo "HOST=${{ vars.HOST }}"
-            echo "PORT=${{ vars.PORT }}"
-            echo "LOG_LEVEL=${{ vars.LOG_LEVEL }}"
-            echo "USER_ID_HEADER=${{ vars.USER_ID_HEADER }}"
-            echo "DB_HOST=${{ secrets.DB_HOST }}"
-            echo "DB_PORT=${{ vars.DB_PORT }}"
-            echo "DB_NAME=${{ secrets.DB_NAME }}"
-            echo "DB_USER=${{ secrets.DB_USER }}"
-            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
-            echo "AWS_DEFAULT_REGION=${{ vars.AWS_DEFAULT_REGION }}"
-            echo "S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}"
-            echo "S3_UPLOAD_PREFIX=${{ vars.S3_UPLOAD_PREFIX }}"
-            echo "ORCHESTRATOR_URL=${{ vars.ORCHESTRATOR_URL }}"
-            echo "MAX_FILE_UPLOAD=${{ vars.MAX_FILE_UPLOAD }}"
-            echo "ALLOWED_FILE_EXTENSIONS=${{ vars.ALLOWED_FILE_EXTENSIONS || '.docx' }}"
-            if [ "${PY_ENV_NORMALIZED}" != "production" ]; then
-              echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
-              echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
-              echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
-            fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: app/core_backend/
-          build-args: ${{ steps.build-args.outputs.build_args }}
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
