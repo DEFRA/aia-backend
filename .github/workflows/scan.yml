@@ -38,7 +38,7 @@ jobs:
           pytest tests/core_backend/ tests/orchestrator/ tests/agent_service/ tests/app_root/ \
             --cov=app \
             --cov-report=xml:coverage/coverage.xml \
-            --ignore-glob='**/test_*.py' \
+            --ignore-glob='app/**/test_*.py' \
             -p no:cacheprovider \
             || true
           chmod -R a+rw ./coverage
