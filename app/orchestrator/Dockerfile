@@ -25,7 +25,7 @@ COPY --chown=nonroot:nonroot app/orchestrator/pyproject.toml ./pyproject.toml
 # Install dependencies (generates uv.lock on first run).
 # Commit the generated uv.lock for reproducible builds.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
-    uv sync --no-build
+    uv lock && uv sync --locked --no-build
 
 COPY --chown=nonroot:nonroot app/orchestrator ./app/orchestrator/
 
@@ -38,7 +38,7 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl --fail http://127.0.0.1:${PORT}/docs || exit 1
 
-CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port \"${PORT}\""]
 
 FROM defradigital/python:${PARENT_VERSION} AS production
 
@@ -69,4 +69,4 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl --fail http://127.0.0.1:${PORT}/docs || exit 1
 
-CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port \"${PORT}\""]
