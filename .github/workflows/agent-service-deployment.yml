@@ -69,48 +69,11 @@ jobs:
           labels: |
             org.opencontainers.image.licenses=OGL-UK-3.0
 
-      - name: Prepare Docker build args
-        id: build-args
-        env:
-          PYTHON_ENV: ${{ vars.PYTHON_ENV || 'production' }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-        run: |
-          PY_ENV_NORMALIZED=$(echo "${PYTHON_ENV}" | tr '[:upper:]' '[:lower:]')
-          {
-            echo "build_args<<EOF"
-            echo "PYTHON_ENV=${{ vars.PYTHON_ENV || 'production' }}"
-            echo "PORT=${{ vars.AGENT_SERVICE_PORT || '8002' }}"
-            echo "LOG_LEVEL=${{ vars.LOG_LEVEL || 'INFO' }}"
-            echo "DB_HOST=${{ secrets.DB_HOST }}"
-            echo "DB_PORT=${{ vars.DB_PORT || '5432' }}"
-            echo "DB_NAME=${{ secrets.DB_NAME }}"
-            echo "DB_USER=${{ secrets.DB_USER }}"
-            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
-            echo "AWS_DEFAULT_REGION=${{ vars.AWS_DEFAULT_REGION }}"
-            echo "SQS_TASK_QUEUE_URL=${{ secrets.TASK_QUEUE_URL }}"
-            echo "SQS_STATUS_QUEUE_URL=${{ secrets.STATUS_QUEUE_URL }}"
-            echo "S3_BUCKET_NAME=${{ vars.DOCUMENTS_BUCKET }}"
-            echo "MODEL_ID=${{ vars.MODEL_ID }}"
-            echo "LLM_PROVIDER=${{ vars.LLM_PROVIDER || 'bedrock' }}"
-            echo "MAX_PRIORITY_ACTIONS=${{ vars.MAX_PRIORITY_ACTIONS || '10' }}"
-            echo "AGENT_TIMEOUT_SECONDS=${{ vars.AGENT_TIMEOUT_SECONDS || '480' }}"
-            echo "WORKER_STUCK_TASK_TIMEOUT_MINUTES=${{ vars.WORKER_STUCK_TASK_TIMEOUT_MINUTES || '120' }}"
-            if [ "${PY_ENV_NORMALIZED}" != "production" ]; then
-              echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
-              echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
-              echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
-            fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: app/agent_service
           file: app/agent_service/Dockerfile
-          build-args: ${{ steps.build-args.outputs.build_args }}
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
