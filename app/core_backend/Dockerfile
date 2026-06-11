@@ -51,13 +51,10 @@ ENV PATH="/home/nonroot/.venv/bin:${PATH}"
 
 WORKDIR /home/nonroot
 
-COPY --from=development /home/nonroot/pyproject.toml .
+COPY --from=development --chown=nonroot:nonroot --chmod=0444 /home/nonroot/pyproject.toml .
 COPY --from=development /home/nonroot/uv.lock .
-COPY --from=development /home/nonroot/src ./src/
+COPY --from=development --chown=nonroot:nonroot --chmod=0555 /home/nonroot/src ./src/
 
-# NOTE: All runtime secrets (DB_*, JWT_SECRET, AWS_*, etc.) are injected
-# by the ECS task definition at container start via SSM/Secrets Manager —
-# never at image build time.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     --mount=from=development,source=/home/nonroot/.local/bin/uv,target=/home/nonroot/.local/bin/uv \
     uv sync --locked --compile-bytecode --no-dev --no-build

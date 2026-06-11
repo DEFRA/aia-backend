@@ -50,9 +50,9 @@ ENV PATH="/home/nonroot/.venv/bin:${PATH}"
 
 WORKDIR /home/nonroot
 
-COPY --from=development /home/nonroot/pyproject.toml .
+COPY --from=development --chown=nonroot:nonroot --chmod=0444 /home/nonroot/pyproject.toml .
 COPY --from=development /home/nonroot/uv.lock .
-COPY --from=development /home/nonroot/app ./app/
+COPY --from=development --chown=nonroot:nonroot --chmod=0555 /home/nonroot/app ./app/
 
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     --mount=from=development,source=/home/nonroot/.local/bin/uv,target=/home/nonroot/.local/bin/uv \

@@ -51,9 +51,9 @@ ENV PATH="/home/nonroot/.venv/bin:${PATH}"
 
 WORKDIR /home/nonroot
 
-COPY --from=development /home/nonroot/pyproject.toml .
+COPY --from=development --chown=nonroot:nonroot --chmod=0444 /home/nonroot/pyproject.toml .
 COPY --from=development /home/nonroot/uv.lock .
-COPY --from=development /home/nonroot/app ./app/
+COPY --from=development --chown=nonroot:nonroot --chmod=0555 /home/nonroot/app ./app/
 
 # NOTE: All runtime secrets (DB_*, JWT_SECRET, AWS_*, etc.) are injected
 # by the ECS task definition at container start via SSM/Secrets Manager —
