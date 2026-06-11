@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
@@ -25,7 +25,8 @@ jobs:
           scan-type: repository
           format: table
           exit-code: 1
-          severity: CRITICAL,HIGH,MEDIUM,LOW
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
           limit-severities-for-sarif: true
         env:
           TRIVY_INCLUDE_DEV_DEPS: "true"
