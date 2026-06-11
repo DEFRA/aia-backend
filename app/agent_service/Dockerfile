@@ -18,14 +18,15 @@ ENV PATH="/home/nonroot/.venv/bin:/home/nonroot/.local/bin:${PATH}"
 
 WORKDIR /home/nonroot
 
-COPY --chown=nonroot:nonroot pyproject.toml .
+COPY --chown=nonroot:nonroot --chmod=0444 pyproject.toml .
 
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     uv lock && uv sync --locked --no-build
 
 # Place source under app/agent_service/ so `from app.agent_service.*` resolves.
-COPY --chown=nonroot:nonroot . ./app/agent_service/
-RUN touch app/__init__.py && chown nonroot:nonroot app/__init__.py
+
+RUN mkdir -p app && touch app/__init__.py
+COPY --chown=nonroot:nonroot --chmod=0555 . ./app/agent_service/
 
 ARG PORT=8002
 ENV PORT=${PORT} \

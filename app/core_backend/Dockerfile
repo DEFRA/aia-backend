@@ -18,12 +18,12 @@ ENV PATH="/home/nonroot/.venv/bin:/home/nonroot/.local/bin:${PATH}"
 
 WORKDIR /home/nonroot
 
-COPY --chown=nonroot:nonroot pyproject.toml .
+COPY --chown=nonroot:nonroot --chmod=0444 pyproject.toml .
 
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     uv lock && uv sync --locked --no-build
 
-COPY --chown=nonroot:nonroot src/ ./src/
+COPY --chown=nonroot:nonroot --chmod=0555 src/ ./src/
 
 ARG PORT=8086
 ENV PORT=${PORT} \

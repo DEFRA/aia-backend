@@ -20,14 +20,12 @@ ENV PATH="/home/nonroot/.venv/bin:/home/nonroot/.local/bin:${PATH}"
 WORKDIR /home/nonroot
 
 # Build context is repo root; use the orchestrator's own pyproject.toml
-COPY --chown=nonroot:nonroot app/orchestrator/pyproject.toml ./pyproject.toml
+COPY --chown=nonroot:nonroot --chmod=0444 app/orchestrator/pyproject.toml ./pyproject.toml
 
-# Install dependencies (generates uv.lock on first run).
-# Commit the generated uv.lock for reproducible builds.
 RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
     uv lock && uv sync --locked --no-build
 
-COPY --chown=nonroot:nonroot app/orchestrator ./app/orchestrator/
+COPY --chown=nonroot:nonroot --chmod=0555 app/orchestrator ./app/orchestrator/
 
 ARG PORT=8001
 ENV PORT=${PORT} \
