@@ -32,7 +32,7 @@ ENV PORT=${PORT} \
 EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl --fail http://127.0.0.1:${PORT}/health || exit 1
+    CMD curl --fail "http://127.0.0.1:${PORT}/health" || exit 1
 
 CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port \"${PORT}\""]
 
@@ -69,6 +69,6 @@ ENV PORT=${PORT} \
 EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl --fail http://127.0.0.1:${PORT}/health || exit 1
+    CMD curl --fail "http://127.0.0.1:${PORT}/health" || exit 1
 
 CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port \"${PORT}\""]
