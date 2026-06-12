@@ -36,10 +36,15 @@ def test_technical_prompt_renders_json_questions() -> None:
         indent=2,
     )
     document: str = "Sample policy text."
+    nonce: str = "test-nonce-123"
 
-    rendered: str = template.format(document=document, questions=questions_block)
+    rendered: str = template.format(
+        nonce=nonce, document=document, questions=questions_block
+    )
 
-    assert "<document>" in rendered
+    # Document is wrapped in the nonce-delimited untrusted-document boundary.
+    assert f"<<<BEGIN_UNTRUSTED_DOCUMENT {nonce}>>>" in rendered
+    assert f"<<<END_UNTRUSTED_DOCUMENT {nonce}>>>" in rendered
     assert "Sample policy text." in rendered
     assert "<category_url>" not in rendered
     assert "aaaa-0001" in rendered
