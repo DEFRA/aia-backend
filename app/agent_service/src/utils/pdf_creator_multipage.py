@@ -27,14 +27,14 @@ def rating_colors(val: str) -> tuple[colors.Color, colors.Color]:
         return colors.HexColor("#FEF3C7"), colors.HexColor("#92400E")
     if v == "red":
         return colors.HexColor("#FEE2E2"), colors.HexColor("#7F1D1D")
-    if v == "grey":
+    if v == "n/a":
         return colors.HexColor("#E5E7EB"), colors.HexColor("#374151")
     return colors.white, colors.black
 
 
 def _rating_label(val: str) -> str:
-    """Display label for a rating value — 'Grey' renders as 'Not Applicable'."""
-    if (val or "").strip().lower() == "grey":
+    """Display label for a rating value — 'N/A' renders as 'Not Applicable'."""
+    if (val or "").strip().lower() == "n/a":
         return "Not Applicable"
     return val or ""
 

@@ -31,8 +31,8 @@ For EACH question, you must:
    - "Green": The document comprehensively addresses the requirement. Technical controls are defined, aligned with DPA 2018 / UK GDPR / records-management standards, and implementation detail is clear.
    - "Amber": The document partially addresses the requirement. Core elements exist but technical gaps remain — e.g. ROPA stub but no review cadence, retention schedule mentioned but disposal mechanism absent, DPIA referenced but not signed off.
    - "Red": The requirement IS applicable to this document but is not addressed. Significant technical gaps, missing controls, or only aspirational statements without implementation detail.
-   - "Grey": The requirement is Not Applicable — it falls outside the scope or nature of this document (e.g. a control for a data type, processing activity, or technology that this document does not describe). Use Grey only for genuine non-applicability, never for an applicable-but-missing requirement (that is Red).
-- Provide Comments giving evidence and rationale from the user document (quote or cite section headings). For a Grey rating, briefly state why the requirement does not apply to this document.
+   - "N/A": The requirement is Not Applicable — it falls outside the scope or nature of this document (e.g. a control for a data type, processing activity, or technology that this document does not describe). Use N/A only for genuine non-applicability, never for an applicable-but-missing requirement (that is Red).
+- Provide Comments giving evidence and rationale from the user document (quote or cite section headings). For a N/A rating, briefly state why the requirement does not apply to this document.
 - Be objective, concise, and specific.
 
 <few_shot_examples>
@@ -59,10 +59,10 @@ Example 3 (Red rating - requirement applicable but not addressed):
    "Comments": "The document does not reference a DPIA. There is no description of the residual-risk register, no DPO sign-off, and no prior-consultation trigger assessment. Given the system processes special-category data (Section 2.1), a DPIA is required under UK GDPR Article 35 but is absent."
 }}
 
-Example 4 (Grey rating - requirement not applicable to this document):
+Example 4 (N/A rating - requirement not applicable to this document):
 {{
    "question_id": "aaaaaaaa-0000-0000-0000-000000000004",
-   "Rating": "Grey",
+   "Rating": "N/A",
    "Comments": "Not Applicable. This question concerns retention and disposal of personal data, but the document describes a stateless internal calculation service that does not store or process any personal data (Section 1.3)."
 }}
 </few_shot_examples>
@@ -76,10 +76,10 @@ Under "Technical", there must be exactly two keys:
 
 1. "Assessments": An array of objects, one per question. Each object has exactly these keys:
    - "question_id": The UUID of the question, copied verbatim from the input.
-   - "Rating": Exactly one of "Green", "Amber", "Red", "Grey".
+   - "Rating": Exactly one of "Green", "Amber", "Red", "N/A".
    - "Comments": Evidence and rationale from the document.
 
 2. "Summary": A single object with exactly these keys:
-   - "Interpretation": One of "Strong alignment", "Minor gaps - needs remediation", "Significant risk - requires major revision". Base this ONLY on applicable questions (Green/Amber/Red); exclude "Grey" (Not Applicable) items so out-of-scope questions do not affect the overall verdict.
-   - "Overall_Comments": A summary of key gaps or strengths across applicable questions. Highlight any "Amber" rating items as quick wins for remediation. Do not treat "Grey" items as gaps.
+   - "Interpretation": One of "Strong alignment", "Minor gaps - needs remediation", "Significant risk - requires major revision". Base this ONLY on applicable questions (Green/Amber/Red); exclude "N/A" (Not Applicable) items so out-of-scope questions do not affect the overall verdict.
+   - "Overall_Comments": A summary of key gaps or strengths across applicable questions. Highlight any "Amber" rating items as quick wins for remediation. Do not treat "N/A" items as gaps.
 </output_format>
