@@ -60,7 +60,7 @@ if (-not (Test-Path $VenvPython)) {
 }
 
 # -- Load .env via python-dotenv ------------------------------------------------
-# Python handles special characters in passwords (e.g. Admin123$@) safely.
+# Python handles special characters in passwords safely.
 $EnvFile = Join-Path $RepoRoot "app\datapipeline\.env"
 if (-not (Test-Path $EnvFile)) {
     Write-Host "ERROR: .env not found at $EnvFile" -ForegroundColor Red

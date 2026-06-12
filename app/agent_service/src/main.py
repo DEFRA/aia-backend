@@ -53,7 +53,7 @@ def main() -> None:
         "app.agent_service.src.main:app",
         host=config.app.host,
         port=_WORKER_PORT,
-        reload=config.app.env.lower() in ("dev", "development"),
+        reload=config.app.env.lower() == "local",
     )
 
 

@@ -1,4 +1,4 @@
-name: Orchestrator Deployment
+name: Orchestrator Publish
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - "[0-9]*.[0-9]*.[0-9]*"
     paths:
       - "app/orchestrator/**"
-      - ".github/workflows/orchestrator-deployment.yml"
+      - ".github/workflows/orchestrator-publish.yml"
   workflow_dispatch:
     inputs:
       environment:
@@ -33,19 +33,19 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ secrets.AWS_ENV_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ENV_ACCOUNT }}:role/${{ secrets.AWS_ENV_ROLE }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2
 
       - name: Generate raw tag
         id: raw-tag
@@ -60,10 +60,11 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           flavor: |
             latest=false
+            suffix=-python3.14.5,onlatest=true
           images: ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}
           tags: |
             type=semver,event=tag,priority=900,pattern={{version}},value=${{ steps.raw-tag.outputs.raw_tag }},enable=${{ startsWith(github.ref, 'refs/tags/') && !startsWith(github.ref, 'refs/tags/v') }}
@@ -74,7 +75,7 @@ jobs:
             org.opencontainers.image.licenses=OGL-UK-3.0
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: app/orchestrator/Dockerfile

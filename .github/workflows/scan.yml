@@ -1,0 +1,90 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    if: ${{ github.event_name != 'schedule' && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.14.5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14.5"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -r app/core_backend/pyproject.toml
+          uv pip install --system -r app/agent_service/pyproject.toml
+          uv pip install --system -r app/orchestrator/pyproject.toml
+          uv pip install --system --group dev -r pyproject.toml
+          mkdir -p coverage
+
+      - name: Run tests and generate combined coverage report
+        run: |
+          pytest tests/core_backend/ tests/orchestrator/ tests/agent_service/ tests/app_root/ \
+            --cov=app \
+            --cov-report=xml:coverage/coverage.xml \
+            --ignore-glob='app/**/test_*.py' \
+            -p no:cacheprovider \
+            || true
+          chmod -R a+rw ./coverage
+        env:
+          DB_HOST: localhost
+          DB_NAME: dummy
+          DB_USER: dummy
+          DB_PASSWORD: dummy
+          JWT_SECRET: dummy-secret
+          AWS_DEFAULT_REGION: eu-west-2
+          AWS_ACCESS_KEY_ID: dummy
+          AWS_SECRET_ACCESS_KEY: dummy
+          S3_BUCKET_NAME: dummy-bucket
+          ORCHESTRATOR_URL: http://localhost:8001
+          ORCHESTRATOR_DEFAULT_AGENT_TYPE: general
+          MAX_PRIORITY_ACTIONS: "10"
+          S3_UPLOAD_PREFIX: uploaded_docs
+          STATUS_QUEUE_URL: https://sqs.eu-west-2.amazonaws.com/000000000000/dummy-status
+          TASK_QUEUE_URL: https://sqs.eu-west-2.amazonaws.com/000000000000/dummy-tasks
+          LLM_PROVIDER: bedrock
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Run Aqua Trivy scan
+        id: trivy-scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-ref: .
+          scan-type: repository
+          format: table
+          exit-code: 0
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          limit-severities-for-sarif: true
+        env:
+          TRIVY_INCLUDE_DEV_DEPS: "true"
