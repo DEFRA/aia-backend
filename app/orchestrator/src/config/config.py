@@ -100,9 +100,9 @@ class AppConfig(BaseSettings):
     aws_session_token: Optional[str] = Field(None, alias="AWS_SESSION_TOKEN")
     aws_endpoint_url: Optional[str] = Field(None, alias="AWS_ENDPOINT_URL")
 
-    # SQS
-    status_queue_url: str = Field("", alias="STATUS_QUEUE_URL")
-    task_queue_url: str = Field("", alias="TASK_QUEUE_URL")
+    # SQS — supplied by environment (.env locally, ECS task definition in prod).
+    status_queue_url: Optional[str] = Field(None, alias="STATUS_QUEUE_URL")
+    task_queue_url: Optional[str] = Field(None, alias="TASK_QUEUE_URL")
 
     # S3
     documents_bucket: str = Field("documents", alias="S3_BUCKET_NAME")
@@ -146,8 +146,6 @@ class AppConfig(BaseSettings):
         secret_key = None if is_production else self.aws_secret_access_key
         session_token = None if is_production else self.aws_session_token
         endpoint = self.aws_endpoint_url
-        if endpoint is None and self.env.lower() in ("dev", "development"):
-            endpoint = "http://localhost:4566"
         return AWSConfig(
             region=self.aws_default_region or self.aws_region,
             access_key_id=access_key,

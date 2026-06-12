@@ -19,7 +19,7 @@ class AccessCodeService:
         if not submitted or len(submitted) > _MAX_CODE_LENGTH:
             return False
 
-        if config.env.lower() in ("dev", "development"):
+        if config.env.lower() == "local":
             valid_code = (config.auth.access_code or "").strip()
             valid_hash = (config.auth.access_code_hash or "").strip().lower()
         else:
