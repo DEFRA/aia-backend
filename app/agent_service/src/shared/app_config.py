@@ -45,8 +45,8 @@ class S3Config(BaseModel):
 
 
 class SQSConfig(BaseModel):
-    task_queue_url: str = "http://localhost:4566/000000000000/aia-tasks"
-    status_queue_url: str = "http://localhost:4566/000000000000/aia-status"
+    task_queue_url: str
+    status_queue_url: str
 
 
 class DBConfig(BaseModel):
@@ -101,13 +101,9 @@ class AppConfig(BaseSettings):
     s3_bucket: str = Field("docsupload", alias="S3_BUCKET_NAME")
     s3_upload_prefix: str = Field("", alias="S3_UPLOAD_PREFIX")
 
-    # SQS
-    sqs_task_url: str = Field(
-        "http://localhost:4566/000000000000/aia-tasks", alias="TASK_QUEUE_URL"
-    )
-    sqs_status_url: str = Field(
-        "http://localhost:4566/000000000000/aia-status", alias="STATUS_QUEUE_URL"
-    )
+    # SQS — supplied by environment (.env locally, ECS task definition in prod).
+    sqs_task_url: Optional[str] = Field(None, alias="TASK_QUEUE_URL")
+    sqs_status_url: Optional[str] = Field(None, alias="STATUS_QUEUE_URL")
 
     # DB
     db_uri: Optional[str] = Field(None, alias="POSTGRES_URI")
@@ -158,8 +154,6 @@ class AppConfig(BaseSettings):
     def aws(self) -> AWSConfig:
         use_static_credentials = self.env.lower() != "production"
         endpoint = self.aws_endpoint
-        if endpoint is None and self.env.lower() in ("dev", "development"):
-            endpoint = "http://localhost:4566"
         return AWSConfig(
             region=self.aws_region,
             access_key_id=self.aws_access_key if use_static_credentials else None,

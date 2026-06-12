@@ -1,6 +1,7 @@
 services:
   localstack:
     image: localstack/localstack:4.9.2
+    container_name: aia-localstack
     ports:
       - "4566:4566" # LocalStack Gateway
       - "4510-4559:4510-4559" # external services port range
@@ -15,32 +16,138 @@ services:
       - "${TMPDIR:-/tmp}/localstack:/var/lib/localstack"
       - ./scripts/start-localstack.sh:/etc/localstack/init/ready.d/start-localstack.sh
     healthcheck:
-      test: ["CMD", "curl", "localhost:4566"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
       interval: 5s
       start_period: 5s
-      retries: 3
+      retries: 6
     networks:
       - cdp-tenant
 
   postgres:
-    container_name: aia_documents
+    container_name: aia-postgres
     image: postgres:16-alpine
     networks:
       - cdp-tenant
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     environment:
-      POSTGRES_USER: aiauser
-      POSTGRES_PASSWORD: Admin123$
-      POSTGRES_DB: aia_documents
+      POSTGRES_USER: ${DB_USER:-aiauser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Admin123$$}
+      POSTGRES_DB: ${DB_NAME:-aia_documents}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Schemas + seed data auto-load on first start (alphabetical order).
+      - ./app/core_backend/src/db/init.sql:/docker-entrypoint-initdb.d/01_backend.sql:ro
+      - ./app/datapipeline/db/init.sql:/docker-entrypoint-initdb.d/02_datapipeline.sql:ro
+      - ./app/datapipeline/data/policy_sources.json:/docker-entrypoint-initdb.d/policy_sources.json:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aiauser -d aia_documents"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aiauser} -d ${DB_NAME:-aia_documents}"]
       interval: 5s
       start_period: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Application services — all built from each Dockerfile's `development`
+  # stage (uv + dev deps; same Python environment used for local work).
+  # All three read .env from the repo root; compose-level `environment:`
+  # overrides only the host/URL keys that differ between host and container.
+  # -------------------------------------------------------------------------
+  orchestrator:
+    container_name: aia-orchestrator
+    build:
+      context: .
+      dockerfile: app/orchestrator/Dockerfile
+      target: development
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AWS_ENDPOINT_URL: http://localstack:4566
+      TASK_QUEUE_URL: http://localstack:4566/000000000000/aia-tasks
+      STATUS_QUEUE_URL: http://localstack:4566/000000000000/aia-status
+    ports:
+      - "${ORCHESTRATOR_PORT:-8001}:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    networks:
+      - cdp-tenant
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/docs"]
+      interval: 10s
+      start_period: 15s
       retries: 5
-    restart: always
+    restart: unless-stopped
+
+  agent-service:
+    container_name: aia-agent-service
+    build:
+      context: ./app/agent_service
+      dockerfile: Dockerfile
+      target: development
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AWS_ENDPOINT_URL: http://localstack:4566
+      TASK_QUEUE_URL: http://localstack:4566/000000000000/aia-tasks
+      STATUS_QUEUE_URL: http://localstack:4566/000000000000/aia-status
+      ORCHESTRATOR_URL: http://orchestrator:8001
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      orchestrator:
+        condition: service_started
+    networks:
+      - cdp-tenant
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8002/health"]
+      interval: 10s
+      start_period: 15s
+      retries: 5
+    restart: unless-stopped
+
+  core-backend:
+    container_name: aia-core-backend
+    build:
+      context: ./app/core_backend
+      dockerfile: Dockerfile
+      target: development
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AWS_ENDPOINT_URL: http://localstack:4566
+      TASK_QUEUE_URL: http://localstack:4566/000000000000/aia-tasks
+      STATUS_QUEUE_URL: http://localstack:4566/000000000000/aia-status
+      ORCHESTRATOR_URL: http://orchestrator:8001
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      orchestrator:
+        condition: service_started
+    networks:
+      - cdp-tenant
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8086/health"]
+      interval: 10s
+      start_period: 15s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   postgres-data:

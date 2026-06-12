@@ -1,77 +1,70 @@
-# Agent timeout (used in orchestrator .env)
-FROM python:3.13-slim AS base
-
-# Build-time arguments (only those relevant for orchestrator)
-ARG PYTHON_ENV=production
-ARG HOST=0.0.0.0
+# syntax=docker/dockerfile:1
+# Build context: repo root (context: . in the workflow)
+ARG PARENT_VERSION=latest-3.14
+ARG PYTHON_VERSION=3.14.5
 ARG PORT=8001
-ARG LOG_LEVEL=INFO
 
-# --- AWS credentials (optional: required for local, not for ECS role) ---
-ARG AWS_DEFAULT_REGION
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
-ARG AWS_SESSION_TOKEN
-ARG S3_BUCKET_NAME
-ARG STATUS_QUEUE_URL
-ARG TASK_QUEUE_URL
+# ---------------------------------------------------------------------------
+# Development stage — includes uv and dev dependencies
+# ---------------------------------------------------------------------------
+FROM defradigital/python-development:${PARENT_VERSION} AS development
 
-ARG ORCHESTRATOR_DEFAULT_AGENT_TYPE
-ARG MAX_PRIORITY_ACTIONS=10
-
-ARG S3_UPLOAD_PREFIX=uploaded_docs
-
-ARG DB_HOST
-ARG DB_PORT=5432
-ARG DB_NAME
-ARG DB_USER
-ARG DB_PASSWORD
-
-# Environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/app \
-    PYTHON_ENV=${PYTHON_ENV} \
-    HOST=${HOST} \
-    PORT=${PORT} \
-    LOG_LEVEL=${LOG_LEVEL} \
-    ORCHESTRATOR_DEFAULT_AGENT_TYPE=${ORCHESTRATOR_DEFAULT_AGENT_TYPE} \
-    MAX_PRIORITY_ACTIONS=${MAX_PRIORITY_ACTIONS} \
-    S3_UPLOAD_PREFIX=${S3_UPLOAD_PREFIX} \
-    AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} \
-    AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
-    AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
-    AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN} \
-    S3_BUCKET_NAME=${S3_BUCKET_NAME} \
-    STATUS_QUEUE_URL=${STATUS_QUEUE_URL} \
-    TASK_QUEUE_URL=${TASK_QUEUE_URL} \
-    DB_HOST=${DB_HOST} \
-    DB_PORT=${DB_PORT} \
-    DB_NAME=${DB_NAME} \
-    DB_USER=${DB_USER} \
-    DB_PASSWORD=${DB_PASSWORD}
-
-WORKDIR /app
-
+USER root
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl \
- && update-ca-certificates \
+ && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*
+USER nonroot
 
-COPY app/orchestrator/requirements.txt ./requirements.txt
-RUN pip install -r requirements.txt
+ENV PATH="/home/nonroot/.venv/bin:/home/nonroot/.local/bin:${PATH}"
 
-COPY app/orchestrator ./app/orchestrator
+WORKDIR /home/nonroot
 
-RUN groupadd --system app && useradd --system --gid app --home-dir /app app \
- && chown -R app:app /app
-USER app
+# Build context is repo root; use the orchestrator's own pyproject.toml
+COPY --chown=nonroot:nonroot --chmod=0444 app/orchestrator/pyproject.toml ./pyproject.toml
 
-EXPOSE 8001
+RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
+    uv lock && uv sync --locked --no-build
+
+COPY --chown=nonroot:nonroot --chmod=0555 app/orchestrator ./app/orchestrator/
+
+ARG PORT=8001
+ENV PORT=${PORT} \
+    PYTHONPATH=/home/nonroot
+
+EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl --fail http://127.0.0.1:8001/docs || exit 1
+    CMD curl --fail "http://127.0.0.1:${PORT}/docs" || exit 1
 
-CMD ["sh", "-c", "uvicorn app.orchestrator.src.main:app --host ${HOST} --port ${PORT}"]
+CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port \"${PORT}\""]
+
+FROM defradigital/python:${PARENT_VERSION} AS production
+
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+USER nonroot
+
+ENV PATH="/home/nonroot/.venv/bin:${PATH}"
+
+WORKDIR /home/nonroot
+
+COPY --from=development --chown=nonroot:nonroot --chmod=0444 /home/nonroot/pyproject.toml .
+COPY --from=development --chown=nonroot:nonroot --chmod=0444 /home/nonroot/uv.lock .
+COPY --from=development --chown=nonroot:nonroot --chmod=0555 /home/nonroot/app ./app/
+
+RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=1000,gid=1000 \
+    --mount=from=development,source=/home/nonroot/.local/bin/uv,target=/home/nonroot/.local/bin/uv \
+    uv sync --locked --compile-bytecode --no-dev --no-build
+
+ARG PORT=8001
+ENV PORT=${PORT} \
+    PYTHONPATH=/home/nonroot
+
+EXPOSE ${PORT}
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl --fail "http://127.0.0.1:${PORT}/docs" || exit 1
+
+CMD ["/bin/sh", "-c", "/home/nonroot/.venv/bin/uvicorn app.orchestrator.src.main:app --host 0.0.0.0 --port \"${PORT}\""]

@@ -1,0 +1,47 @@
+name: Check Pull Request
+
+on:
+  pull_request:
+    branches:
+      - main
+      - development
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+jobs:
+  security-scan:
+    name: Security Scanning
+    uses: ./.github/workflows/scan.yml
+    secrets: inherit
+
+  pr-validator:
+    name: Run Pull Request Checks
+    needs: security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Test core backend Docker image build
+        run: |
+          set +e
+          docker build --no-cache --tag aia-core-backend app/core_backend/
+          exit $?
+
+      - name: Test agent service Docker image build
+        run: |
+          set +e
+          docker build --no-cache --tag aia-agent-service --file app/agent_service/Dockerfile app/agent_service
+          exit $?
+
+      - name: Test orchestrator Docker image build
+        run: |
+          set +e
+          docker build --no-cache --tag aia-orchestrator --file app/orchestrator/Dockerfile .
+          exit $?
