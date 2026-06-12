@@ -1,5 +1,7 @@
 """ReportLab PDF builder for multi-section security assessment reports."""
 
+from xml.sax.saxutils import escape
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, StyleSheet1, getSampleStyleSheet
@@ -25,26 +27,36 @@ def rating_colors(val: str) -> tuple[colors.Color, colors.Color]:
         return colors.HexColor("#FEF3C7"), colors.HexColor("#92400E")
     if v == "red":
         return colors.HexColor("#FEE2E2"), colors.HexColor("#7F1D1D")
-    if v == "grey":
+    if v == "n/a":
         return colors.HexColor("#E5E7EB"), colors.HexColor("#374151")
     return colors.white, colors.black
 
 
 def _rating_label(val: str) -> str:
-    """Display label for a rating value — 'Grey' renders as 'Not Applicable'."""
-    if (val or "").strip().lower() == "grey":
+    """Display label for a rating value — 'N/A' renders as 'Not Applicable'."""
+    if (val or "").strip().lower() == "n/a":
         return "Not Applicable"
     return val or ""
+
+
+def _esc(text: object) -> str:
+    """Escape untrusted text for safe rendering inside a ReportLab Paragraph.
+
+    Paragraph parses an intra-paragraph mini-XML markup, so unescaped LLM output
+    could inject ``<link>``/``<font>`` tags or break rendering with a stray ``<``.
+    """
+    return escape("" if text is None else str(text))
 
 
 def _format_reference(ref: object) -> str:
     """Render a Reference dict as ReportLab paragraph markup."""
     if not isinstance(ref, dict):
         return ""
-    text: str = str(ref.get("text", "") or "")
+    text: str = _esc(ref.get("text", "") or "")
     url: object = ref.get("url")
     if isinstance(url, str) and url:
-        return f'<link href="{url}" color="#1D4ED8">{text}</link>'
+        safe_url: str = escape(url, {'"': "&quot;"})
+        return f'<link href="{safe_url}" color="#1D4ED8">{text}</link>'
     return text
 
 
@@ -117,9 +129,9 @@ def build_security_report(
         comments: str = fs.get("Overall_Comments", "")
 
         story.append(Paragraph("Summary", h2))
-        story.append(Paragraph(f"<b>Interpretation:</b> {interp}", body))
+        story.append(Paragraph(f"<b>Interpretation:</b> {_esc(interp)}", body))
         story.append(Spacer(1, 4))
-        story.append(Paragraph(f"<b>Overall Comments:</b> {comments}", body))
+        story.append(Paragraph(f"<b>Overall Comments:</b> {_esc(comments)}", body))
         story.append(Spacer(1, 12))
 
         story.append(Paragraph("Assessments", h2))
@@ -137,9 +149,9 @@ def build_security_report(
         for a in assessments:
             table_data.append(
                 [
-                    Paragraph(a.get("Question", ""), wrap_style),
-                    Paragraph(_rating_label(a.get("Rating", "")), wrap_center),
-                    Paragraph(a.get("Comments", ""), wrap_style),
+                    Paragraph(_esc(a.get("Question", "")), wrap_style),
+                    Paragraph(_esc(_rating_label(a.get("Rating", ""))), wrap_center),
+                    Paragraph(_esc(a.get("Comments", "")), wrap_style),
                     Paragraph(_format_reference(a.get("Reference")), wrap_style),
                 ]
             )

@@ -16,8 +16,8 @@ class SummaryGenerator(Protocol):
 
 
 class MarkdownReportGenerator:
-    # Grey = Not Applicable; excluded from score % but counted for transparency.
-    _RATING_EMOJI = {"Green": "🟢", "Amber": "🟡", "Red": "🔴", "Grey": "⚫"}
+    # N/A = Not Applicable; excluded from score % but counted for transparency.
+    _RATING_EMOJI = {"Green": "🟢", "Amber": "🟡", "Red": "🔴", "N/A": "⚪"}
 
     def generate(
         self,
@@ -83,9 +83,9 @@ class MarkdownReportGenerator:
     ) -> list[str]:
         lines: list[str] = ["## Final Evaluation Summary", ""]
         total_g = total_a = total_r = total_n = 0
-        # category_score[label] = % green (lower = worse); Grey excluded from denominator
+        # category_score[label] = % green (lower = worse); N/A excluded from denominator
         category_score: dict[str, int] = {}
-        # category_counts[label] = (green, amber, red, grey) for the scorecard
+        # category_counts[label] = (green, amber, red, N/A) for the scorecard
         category_counts: dict[str, tuple[int, int, int, int]] = {}
         for agent_type in agent_type_order:
             result_list = [r for r in results.get(agent_type, []) if r is not None]
@@ -130,7 +130,7 @@ class MarkdownReportGenerator:
         # ── Scorecard ─────────────────────────────────────────────────────────
         lines.append("### Cross-Category Scorecard")
         lines.append("")
-        lines.append("| Category | 🟢 Green | 🟡 Amber | 🔴 Red | ⚫ N/A | Score |")
+        lines.append("| Category | 🟢 Green | 🟡 Amber | 🔴 Red | ⚪ N/A | Score |")
         lines.append("|---|---|---|---|---|---|")
         for label, (g, a, r, n) in category_counts.items():
             score = category_score[label]
@@ -191,7 +191,7 @@ class MarkdownReportGenerator:
                         a += 1
                     elif row.Rating == "Red":
                         r += 1
-                    elif row.Rating == "Grey":
+                    elif row.Rating == "N/A":
                         n += 1
         return g, a, r, n
 

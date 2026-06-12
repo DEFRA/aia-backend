@@ -174,3 +174,27 @@ async def test_technical_agent_raises_on_validation_error() -> None:
         await agent.assess(_DOCUMENT, _QUESTIONS)
 
     assert client.messages.create.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_technical_agent_returns_structured_output_on_valid_payload() -> None:
+    """Valid JSON payload returns parsed rows, summary, and LLM metadata."""
+    client: MagicMock = MagicMock()
+    client.messages.create = AsyncMock(
+        return_value=_make_response(json.dumps(_technical_payload(_QUESTIONS)))
+    )
+    agent: TechnicalAgent = _make_agent(client)
+
+    result: AgentLLMOutput = await agent.assess(_DOCUMENT, _QUESTIONS)
+
+    assert isinstance(result, AgentLLMOutput)
+    assert len(result.rows) == len(_QUESTIONS)
+    assert result.rows[0].question_id == _QUESTIONS[0].id
+    assert result.summary.Interpretation == "Strong alignment"
+    assert result.summary.Overall_Comments == "All requirements addressed."
+    assert result.llm_meta.model == agent.agent_config.model
+    assert result.llm_meta.input_tokens == 10
+    assert result.llm_meta.output_tokens == 10
+    assert result.llm_meta.stop_reason == "end_turn"
+
+    assert client.messages.create.await_count == 1

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class AssessmentRow(BaseModel):
     Question: str
-    Rating: Literal["Green", "Amber", "Red", "Grey"]
+    Rating: Literal["Green", "Amber", "Red", "N/A"]
     Comments: str
     Reference: str
 

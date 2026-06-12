@@ -8,6 +8,7 @@ import json
 import logging
 from pathlib import Path
 from typing import cast
+from uuid import uuid4
 
 import anthropic
 from anthropic import APIError
@@ -62,7 +63,9 @@ class TechnicalAgent:
         document: str,
         questions: list[QuestionItem],
     ) -> AgentLLMOutput:
+        nonce: str = uuid4().hex
         user_content: str = _USER_TEMPLATE.format(
+            nonce=nonce,
             document=document,
             questions=_format_questions_block(questions),
         )
