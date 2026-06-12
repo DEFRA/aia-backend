@@ -5,14 +5,18 @@ from __future__ import annotations
 import io
 
 import fitz
+import pytest
 from docx import Document
 
 from app.agent_service.src.utils.doc_parser import (
+    _parse_bytes,
     clean_and_chunk,
     extract_text_blocks,
     get_pdf_strategy,
     parse_docx,
+    sanitize_text,
 )
+from app.agent_service.src.utils.exceptions import ScannedPdfError
 
 # ---------------------------------------------------------------------------
 # Helpers — build minimal in-memory PDF and DOCX fixtures
@@ -281,3 +285,64 @@ class TestParseDocx:
         chunks: list[dict] = parse_docx(docx_bytes)  # type: ignore[type-arg]
         indices: list[int] = [c["chunk_index"] for c in chunks]
         assert indices == list(range(len(indices)))
+
+
+# ---------------------------------------------------------------------------
+# sanitize_text
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizeText:
+    """Tests for sanitize_text()."""
+
+    def test_empty_text_is_returned_as_is(self) -> None:
+        assert sanitize_text("") == ""
+
+    def test_removes_invisible_controls_and_normalizes_nfkc(self) -> None:
+        dirty = (
+            "A\u200b"  # zero-width space
+            "B\ufeff"  # BOM / ZWNBSP
+            "C\u202e"  # bidi control
+            "\U000E0061"  # tag block character
+            "\x01"  # control character
+            "\t\n\r"  # preserved control whitespace
+            "\u200d\u200c"  # preserve ZWJ and ZWNJ
+            "Ａ"  # full-width A should normalize to A
+        )
+        assert sanitize_text(dirty) == "ABC\t\n\r\u200d\u200cA"
+
+
+# ---------------------------------------------------------------------------
+# _parse_bytes
+# ---------------------------------------------------------------------------
+
+
+class TestParseBytes:
+    """Tests for _parse_bytes()."""
+
+    def test_pdf_with_text_returns_chunks(self) -> None:
+        pdf_bytes: bytes = _make_text_pdf(["Policy content section. " * 12])
+        chunks: list[dict] = _parse_bytes(pdf_bytes, "security-policy.pdf", "doc-1")  # type: ignore[type-arg]
+
+        assert len(chunks) >= 1
+        first = chunks[0]
+        assert first["chunk_index"] == 0
+        assert first["page"] == 1
+        assert isinstance(first["is_heading"], bool)
+        assert first["char_count"] > 0
+        assert "Policy content section." in first["text"]
+
+    def test_scanned_pdf_raises_scanned_pdf_error(self) -> None:
+        pdf_bytes: bytes = _make_blank_pdf()
+        with pytest.raises(ScannedPdfError):
+            _parse_bytes(pdf_bytes, "scan.pdf", "doc-2")
+
+    def test_docx_extension_parses_docx(self) -> None:
+        docx_bytes: bytes = _make_docx([("Normal", "DOCX body")])
+        chunks: list[dict] = _parse_bytes(docx_bytes, "input.docx", "doc-3")  # type: ignore[type-arg]
+        assert len(chunks) == 1
+        assert chunks[0]["text"] == "DOCX body"
+
+    def test_missing_extension_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported file extension"):
+            _parse_bytes(b"irrelevant", "no_extension", "doc-4")
