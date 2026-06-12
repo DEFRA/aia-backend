@@ -24,14 +24,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 # NB: ZWJ (U+200D) and ZWNJ (U+200C) are intentionally NOT stripped — they are
 # linguistically significant in scripts such as Devanagari, Persian and Arabic,
 # and removing them would corrupt legitimate non-English content.
-_ZERO_WIDTH: frozenset[str] = frozenset({"​", "﻿"})  # ZWSP, BOM/ZWNBSP
+_ZERO_WIDTH: frozenset[str] = frozenset({"\u200b", "\ufeff"})  # ZWSP, BOM/ZWNBSP
 
 # Bidirectional override/isolate controls — used to make visible text differ
 # from the logical text the model actually reads.
 _BIDI_CONTROLS: frozenset[str] = frozenset(
     {
-        "‪", "‫", "‬", "‭", "‮",  # LRE RLE PDF LRO RLO
-        "⁦", "⁧", "⁨", "⁩",            # LRI RLI FSI PDI
+        "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",  # LRE RLE PDF LRO RLO
+        "\u2066", "\u2067", "\u2068", "\u2069",            # LRI RLI FSI PDI
     }
 )
 
